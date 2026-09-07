@@ -6,8 +6,14 @@ locally on your GPU with [WhisperX](https://github.com/m-bain/whisperX) and
 [pyannote](https://github.com/pyannote/pyannote-audio). Nothing is uploaded
 anywhere.
 
+Input can be a SharePoint share link, any direct URL, or a local video/audio file:
+
 ```bash
-uv run transcribe.py "https://contoso-my.sharepoint.com/:v:/g/personal/user_contoso_com/IQAbc…?e=xyz" -l cs
+# Teams recording shared as an "anyone with the link" SharePoint link
+uv run transcribe.py run "https://contoso-my.sharepoint.com/:v:/g/personal/user_contoso_com/IQAbc…?e=xyz" -l cs
+
+# a file you already have (mp4, mkv, mp3, wav… anything ffmpeg reads)
+uv run transcribe.py run meeting.mp4 -l cs
 ```
 
 At the end the script shows you who talked the most, with sample sentences, and
