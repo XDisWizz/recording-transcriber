@@ -42,34 +42,67 @@ Output: `work/<name>/<name>.txt` (paragraph per speaker turn) and
 
 ## Usage
 
-```
-uv run transcribe.py INPUT [options]
+### One shot
 
-INPUT                  video/audio file, SharePoint share link, or direct URL
--l, --language cs      language code; default auto-detect
--m, --model large-v3   any faster-whisper model (medium, small… for weaker GPUs)
--b, --batch-size 4     halved automatically on GPU out-of-memory
---no-diarize           transcript only, no speaker labels
---default-label NAME   label for speakers you don't name (default: speaker)
---top N                how many speakers to ask about (default 6)
---rename               only redo the naming step over existing results
--y, --yes              non-interactive; keeps SPEAKER_XX (name later with --rename)
--w, --workdir DIR      intermediate files (default ./work/<name>)
+```bash
+uv run transcribe.py run INPUT [-l cs] [-m large-v3] [-b 4] [--no-diarize] [--default-label speaker] [-y]
 ```
 
-Every stage is cached in the work dir, so re-running after a crash or with
-`--rename` is instant. Delete the work dir to start over.
+Runs every stage and asks you to name the speakers at the end. Everything
+lands in `work/<name>/`.
 
-Speaker mapping lives in `work/<name>/speakers.json` and can be edited by hand:
+### Step by step
 
-```json
-{ "default": "student", "speakers": { "SPEAKER_03": "teacher", "SPEAKER_07": "teacher" } }
+Every stage is its own command. Each one is idempotent (skips work that is
+already done), prints what it did and what to run next, and reads/writes fixed
+file names in the work dir. This is the mode to use from scripts, or when an AI
+agent drives the tool: it can run one command, read the output, decide, and
+continue.
+
+```bash
+uv run transcribe.py status      -w work/x [--json]         # what exists, what is next
+uv run transcribe.py download    URL          -w work/x      # SharePoint share link or direct URL -> media.*
+uv run transcribe.py audio       [MEDIA]      -w work/x      # ffmpeg -> audio.wav
+uv run transcribe.py transcribe  -w work/x -l cs [--force]   # WhisperX -> transcript.json
+uv run transcribe.py diarize     -w work/x [--force]         # pyannote -> diarized.json
+uv run transcribe.py speakers show -w work/x [--top 8] [--samples 3] [--json]
+uv run transcribe.py speakers set  -w work/x SPEAKER_03=teacher SPEAKER_07=teacher --default student
+uv run transcribe.py speakers ask  -w work/x                 # interactive alternative to `set`
+uv run transcribe.py write       -w work/x [--only teacher] [--name out]   # -> transcript.txt / .srt
 ```
 
-Two labels pointing to the same name are merged, which is handy when
-diarization splits one person into two (it happens with a live voice vs. a
-pre-recorded clip of the same speaker). Type `=` at the prompt to reuse the
-previous label.
+`speakers show` lists speakers by talk time with their time range and the
+longest sentences they said, which is usually enough to tell who is who.
+`speakers set` validates the ids, merges into the existing `speakers.json`
+(`--clear` to start over) and two ids may share one label. `write --only PREFIX`
+keeps only labels starting with PREFIX and marks the omitted stretches with
+their time range.
+
+Work dir layout:
+
+```
+work/x/
+  meta.json         source, duration, model, language
+  media.mp4         downloaded recording (only when `download` was used)
+  audio.wav         mono 16 kHz
+  transcript.json   WhisperX segments with word timings
+  diarized.json     same, with "speaker" on every word/segment
+  speakers.json     {"default": "student", "speakers": {"SPEAKER_03": "teacher"}}
+  transcript.txt    paragraph per speaker turn
+  transcript.srt    subtitles with [label] prefix
+```
+
+Delete a file to redo that stage, or pass `--force` to `transcribe` / `diarize`.
+Redoing `transcribe` removes a stale `diarized.json` automatically.
+
+### For AI agents
+
+Suggested loop: `status --json` → run the command it names → `speakers show
+--json` → pick labels from the samples → `speakers set …` → `write`. All
+commands exit non-zero with a one-line `ERROR:` on stderr when a precondition
+is missing (no token, no access to a gated model, wrong speaker id, missing
+stage), so nothing needs a terminal or stdin except `speakers ask` and
+`run` without `-y`.
 
 ## SharePoint links
 
