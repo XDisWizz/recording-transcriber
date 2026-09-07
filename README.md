@@ -27,7 +27,8 @@ Output: `work/<name>/<name>.txt` (paragraph per speaker turn) and
 
 - Linux/macOS, Python 3.10–3.12, [`uv`](https://docs.astral.sh/uv/) (handles the Python deps)
 - `ffmpeg` on PATH
-- NVIDIA GPU with ~6 GB free for `large-v3` (or `--device cpu`, very slow)
+- NVIDIA GPU with ~6 GB free VRAM for `large-v3` (diarization adds ~2 GB); `--device cpu` works but takes hours for long recordings
+- ~10 GB disk: ~5 GB Python env with torch, ~3 GB `large-v3`, plus the recording and its WAV
 - For speaker labels: a free HuggingFace account
   1. create a **Read** token at <https://huggingface.co/settings/tokens>
   2. click *Agree and access repository* on
