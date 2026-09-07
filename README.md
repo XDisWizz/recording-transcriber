@@ -1,4 +1,4 @@
-# teams-recording-transcriber
+# recording-transcriber
 
 One script that turns a meeting recording (Teams/SharePoint link or a local
 video/audio file) into a text transcript with speaker labels. Runs fully
