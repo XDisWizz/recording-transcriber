@@ -26,8 +26,9 @@ SPEAKER_03  1.6 min (44%), 0:00 – 3:59
    label for SPEAKER_03 [speaker]: teacher
 ```
 
-Output: `work/<name>/<name>.txt` (paragraph per speaker turn) and
-`<name>.srt` (subtitles with speaker prefix).
+Output: `work/<name>/<name>.txt` (paragraph per speaker turn),
+`<name>.srt` (subtitles with speaker prefix) and `<name>.tsv` (one segment per
+row: start/end in ms, speaker, text).
 
 ## Requirements
 
@@ -74,7 +75,7 @@ uv run transcribe.py diarize     -w work/x [--force]         # pyannote -> diari
 uv run transcribe.py speakers show -w work/x [--top 8] [--samples 3] [--json]
 uv run transcribe.py speakers set  -w work/x SPEAKER_03=teacher SPEAKER_07=teacher --default student
 uv run transcribe.py speakers ask  -w work/x                 # interactive alternative to `set`
-uv run transcribe.py write       -w work/x [--only teacher] [--name out]   # -> transcript.txt / .srt
+uv run transcribe.py write       -w work/x [--only teacher] [--name out]   # -> transcript.txt / .srt / .tsv
 ```
 
 `speakers show` lists speakers by talk time with their time range and the
@@ -96,6 +97,7 @@ work/x/
   speakers.json     {"default": "student", "speakers": {"SPEAKER_03": "teacher"}}
   transcript.txt    paragraph per speaker turn
   transcript.srt    subtitles with [label] prefix
+  transcript.tsv    start, end (ms), speaker, text – one segment per row
 ```
 
 Delete a file to redo that stage, or pass `--force` to `transcribe` / `diarize`.
@@ -135,7 +137,7 @@ was all that was needed.
 
 Skript stáhne záznam (SharePoint odkaz nebo soubor), přepíše ho přes WhisperX,
 rozpozná mluvčí přes pyannote a na konci se zeptá, kdo je kdo. Výstup je
-`.txt` s odstavci podle mluvčího a `.srt` s časy. Vše běží lokálně, potřebuje
+`.txt` s odstavci podle mluvčího, `.srt` s časy a `.tsv` tabulka (start, end, mluvčí, text). Vše běží lokálně, potřebuje
 NVIDIA GPU, ffmpeg a pro mluvčí zdarma HuggingFace token (postup výše).
 
 ## License

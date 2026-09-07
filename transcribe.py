@@ -21,7 +21,7 @@ Step by step (each command is idempotent and prints what it did; good for script
     uv run transcribe.py write       -w work/x [--only teacher]   txt + srt (optionally only some labels)
 
 Work dir layout (fixed names, so any step can be re-run or done by hand):
-    meta.json  media.*  audio.wav  transcript.json  diarized.json  speakers.json  transcript.txt  transcript.srt
+    meta.json  media.*  audio.wav  transcript.json  diarized.json  speakers.json  transcript.txt  transcript.srt  transcript.tsv
 Add --json to status / speakers show for machine-readable output.
 """
 from __future__ import annotations
@@ -69,6 +69,7 @@ class Work:
         self.speakers = path / "speakers.json"
         self.txt = path / "transcript.txt"
         self.srt = path / "transcript.srt"
+        self.tsv = path / "transcript.tsv"
 
     @property
     def media(self) -> Path | None:
@@ -367,7 +368,16 @@ def cmd_speakers_ask(w: Work, top: int, default_label: str) -> None:
 
 # ----------------------------------------------------------------------------- write
 
-def stage_write(w: Work, only: str | None = None, out_stem: str | None = None) -> tuple[Path, Path]:
+def write_tsv(segments, path: Path, label) -> None:
+    """One segment per row: start/end in ms (same as WhisperX's .tsv), speaker label (empty if none), text."""
+    with open(path, "w") as f:
+        f.write("start\tend\tspeaker\ttext\n")
+        for seg in segments:
+            text = " ".join(seg["text"].split())
+            f.write(f"{round(seg['start'] * 1000)}\t{round(seg['end'] * 1000)}\t{label(seg) or ''}\t{text}\n")
+
+
+def stage_write(w: Work, only: str | None = None, out_stem: str | None = None) -> tuple[Path, Path, Path]:
     result = w.result()
     cfg = load_speakers_cfg(w)
     has_speakers = any("speaker" in s for s in result["segments"])
@@ -381,8 +391,9 @@ def stage_write(w: Work, only: str | None = None, out_stem: str | None = None) -
         return cfg["speakers"].get(spk, cfg.get("default") or spk)
 
     stem = out_stem or ("transcript" if not only else f"transcript-{only}")
-    txt, srt = w.dir / f"{stem}.txt", w.dir / f"{stem}.srt"
+    txt, srt, tsv = w.dir / f"{stem}.txt", w.dir / f"{stem}.srt", w.dir / f"{stem}.tsv"
     kept = skipped = words = 0
+    rows = []
     with open(txt, "w") as f, open(srt, "w") as g:
         last = object(); gap = None; n = 0
         for seg in result["segments"]:
@@ -391,7 +402,7 @@ def stage_write(w: Work, only: str | None = None, out_stem: str | None = None) -
                 skipped += 1
                 if gap is None: gap = seg["start"]
                 continue
-            kept += 1; words += len(text.split())
+            kept += 1; words += len(text.split()); rows.append(seg)
             if gap is not None:
                 f.write(f"\n\n[… {fmt_ts(gap, '.')[:-4]}–{fmt_ts(seg['start'], '.')[:-4]} omitted]")
                 gap = None; last = object()
@@ -406,8 +417,10 @@ def stage_write(w: Work, only: str | None = None, out_stem: str | None = None) -
             g.write(f"{n}\n{fmt_ts(seg['start'])} --> {fmt_ts(seg['end'])}\n{pre}{text}\n\n")
     extra = f", kept {kept} / skipped {skipped} segments" if only else ""
     log(f"write: {txt} ({words} words{extra})")
+    write_tsv(rows, tsv, label)
     log(f"write: {srt}")
-    return txt, srt
+    log(f"write: {tsv}")
+    return txt, srt, tsv
 
 
 # ----------------------------------------------------------------------------- status
