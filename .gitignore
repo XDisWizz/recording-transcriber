@@ -1,0 +1,8 @@
+.local_trash/
+work/
+*.wav
+*.mp4
+*.media
+*.cookies
+*.lock
+__pycache__/
